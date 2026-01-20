@@ -18,12 +18,16 @@ class ScoreCalculator {
 
             $candidate = Normalizer::vehicleData($postId);
 
-            // Skip if not matching category logic
-            if (!call_user_func($category['match'], $candidate)) {
-                continue;
-            }
-
             $score = 0;
+
+            // if (!call_user_func($category['match'], $candidate)) {
+            //     continue;
+            // }
+
+            // --- Category match bonus (not required, just bonus points) ---
+            if (call_user_func($category['match'], $candidate)) {
+                $score += 40;
+            }
 
             // --- Body style match ---
             if ($current['body_style'] && str_contains($candidate['body_style'], $current['body_style'])) {
@@ -62,6 +66,7 @@ class ScoreCalculator {
                 $score += 5;
             }
 
+            // Only include vehicles with some score
             if ($score > 0) {
                 $ranked[] = [
                     'post_id' => $postId,

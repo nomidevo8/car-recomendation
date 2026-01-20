@@ -14,10 +14,10 @@ class QueryBuilder {
 
         $metaQuery = [];
 
-        // --- Price pre-filter (±30%) ---
-        if (!empty($vehicle['price'])) {
-            $min = (int) ($vehicle['price'] * 0.7);
-            $max = (int) ($vehicle['price'] * 1.3);
+        // --- Price pre-filter (±50% - wider range) ---
+        if (!empty($vehicle['price']) && $vehicle['price'] > 0) {
+            $min = (int) ($vehicle['price'] * 0.5);
+            $max = (int) ($vehicle['price'] * 1.5);
 
             $metaQuery[] = [
                 'key'     => 'vehicle_price',
@@ -27,44 +27,32 @@ class QueryBuilder {
             ];
         }
 
-        // --- Body style hint (LIKE because it's text) ---
-        if (!empty($vehicle['body_style'])) {
-            $metaQuery[] = [
-                'key'     => 'vehicle_body_style',
-                'value'   => $vehicle['body_style'],
-                'compare' => 'LIKE',
-            ];
-        }
-
-        // --- Fuel type hint ---
-        if (!empty($vehicle['fuel'])) {
-            $metaQuery[] = [
-                'key'     => 'vehicle_fuel',
-                'value'   => $vehicle['fuel'],
-                'compare' => 'LIKE',
-            ];
-        }
-
         $args = [
             'post_type'      => 'car-listing',
             'post_status'    => 'publish',
-            'posts_per_page' => 50, // hard cap for performance
+            'posts_per_page' => 100, // increased for more candidates
             'post__not_in'   => [$currentPostId],
             'fields'         => 'ids',
             'no_found_rows'  => true,
-            'meta_query'     => [
-                'relation' => 'AND',
-                ...$metaQuery,
-            ],
+            'orderby'        => 'rand', // randomize to get variety
         ];
 
-        // --- Taxonomy fallback (optional boost) ---
+        // Only add meta_query if we have conditions
+        if (!empty($metaQuery)) {
+            $args['meta_query'] = [
+                'relation' => 'AND',
+                ...$metaQuery,
+            ];
+        }
+
+        // --- Taxonomy hint (optional, not required) ---
         if (!empty($vehicle['categories'])) {
             $args['tax_query'] = [
                 [
                     'taxonomy' => 'car_category',
                     'field'    => 'slug',
                     'terms'    => $vehicle['categories'],
+                    'operator' => 'IN',
                 ],
             ];
         }

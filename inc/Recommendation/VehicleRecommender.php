@@ -16,40 +16,63 @@ class VehicleRecommender {
     }
 
     /**
-     * Get category-wise recommendations
+     * Get flat array of recommended vehicle IDs (up to 6)
      */
     public function get(): array {
+      
+        $limit = 6;
 
-        $results = [];
-
-        $categories = CategoryRules::all();
+        // Get all candidate vehicles
         $candidates = QueryBuilder::candidates($this->postId, $this->vehicle);
 
         if (empty($candidates)) {
             return [];
         }
 
-        foreach ($categories as $key => $category) {
+        // Detect primary category for scoring preference
+        $categories = CategoryRules::all();
+        $primaryCategory = CategoryRules::detect($this->vehicle);
+        $categoryOrder   = CategoryRules::ordered($primaryCategory);
 
+        // Score all candidates across all categories and collect unique results
+        $seen = [];
+        $recommendations = [];
+
+        foreach ($categoryOrder as $key) {
+
+            if (count($recommendations) >= $limit) {
+                break;
+            }
+
+            if (!isset($categories[$key])) {
+                continue;
+            }
+
+            $category = $categories[$key];
+
+            // Get ranked candidates for this category
             $ranked = ScoreCalculator::rank(
                 $this->vehicle,
                 $candidates,
                 $category
             );
 
-            if (!empty($ranked)) {
-                $results[$key] = [
-                    'label' => $category['label'],
-                    'items' => array_slice($ranked, 0, 8), // limit per carousel
-                ];
+            // Add top candidates from this category
+            foreach ($ranked as $postId) {
+                // Skip if already added
+                if (isset($seen[$postId])) {
+                    continue;
+                }
+
+                $seen[$postId] = true;
+                $recommendations[] = $postId;
+
+                if (count($recommendations) >= $limit) {
+                    break 2; // Break out of both loops
+                }
             }
         }
 
-        return $results;
+        return $recommendations;
     }
 }
-
-
-$test = new VehicleRecommender(234);
-$sections = $test->get();
-error_log(print_r($sections, true));

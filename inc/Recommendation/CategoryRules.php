@@ -39,6 +39,41 @@ class CategoryRules {
         ];
     }
 
+    /**
+     * Detect the primary category for a vehicle (first match wins)
+     */
+    public static function detect(array $vehicle): ?string {
+        foreach (self::all() as $key => $category) {
+            if (call_user_func($category['match'], $vehicle)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Return category keys ordered for fallback (start from detected)
+     */
+    public static function ordered(?string $startKey = null): array {
+        $keys = array_keys(self::all());
+
+        if ($startKey === null) {
+            return $keys;
+        }
+
+        $index = array_search($startKey, $keys, true);
+
+        if ($index === false) {
+            return $keys;
+        }
+
+        return [
+            ...array_slice($keys, $index),
+            ...array_slice($keys, 0, $index),
+        ];
+    }
+
     /* -------------------------------------------------
      * CATEGORY MATCHERS
      * Each method receives normalized vehicle data
